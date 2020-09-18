@@ -2,7 +2,7 @@
 version: 1.0
 creator: jsjm
 
-References: 
+References:
 Urban Sound Classification using Convolutional Neural Networks with Keras: Theory and Implementation
 tutorial retrieved from: https://medium.com/gradientcrescent/urban-sound-classification-using-convolutional-neural-networks-with-keras-theory-and-486e92785df4
 
@@ -11,7 +11,7 @@ tutorial retrieved from: https://medium.com/gradientcrescent/urban-sound-classif
 from model import model_construction
 from keras_preprocessing.image import ImageDataGenerator
 import shutil, os
-import argparse 
+import argparse
 
 
 def list_combinations(food_arr, combination_list):
@@ -58,6 +58,8 @@ def classification_task(model, food_pair):
         #Fitting keras model
         STEP_SIZE_TRAIN=train_generator.n//train_generator.batch_size
         STEP_SIZE_VALID=valid_generator.n//valid_generator.batch_size
+        nb_samples = len(valid_generator)
+        
         model.fit_generator(generator=train_generator,
                         steps_per_epoch=STEP_SIZE_TRAIN,
                         validation_data=valid_generator,
@@ -66,15 +68,33 @@ def classification_task(model, food_pair):
                         )
         res = model.evaluate_generator(generator=valid_generator, steps=STEP_SIZE_VALID)
 
-        # write results
+        # write results accuracy
         with open('res_matrix.txt', 'a') as file:
-                file.write('{0}'.format(food_pair) + ' ' + str(res)+'\n') 
-           
+                file.write('{0}'.format(food_pair) + ' ' + str(res)+'\n')
+
+        #ROC
+        from sklearn.metrics import roc_curve, roc_auc_score
+
+        preds = model.predict_generator(generator=valid_generator, steps=nb_samples)
+        labels = []
+
+        for sample in range(0,len(valid_generator)):
+            # print(valid_generator[sample][1])
+            for element in valid_generator[sample][1]:
+                labels.append(list(element))
+
+        roc_auc = roc_auc_score(labels, preds)
+
+        # write results auc
+        with open('res_matrix_auc.txt', 'a') as file:
+                file.write('{0}'.format(food_pair) + ' ' + str(roc_auc)+'\n')
+
+
 
 if __name__ == '__main__':
 
-        FOODS = ['aloe', 'burger', 'cabbage', 'candied_fruits', 'carrots', 'chips', 'chocolate', 'drinks', 
-                'fries', 'grapes', 'gummies', 'ice-cream', 'jelly', 'noodles', 'pickles', 'pizza', 'ribs', 'salmon', 'soup', 'wings']
+        FOODS = ['aloe', 'burger', 'cabbage', 'candied_fruits', 'carrots', 'chips', 'chocolate', 'drinks',
+                'fries', 'grapes', 'gummies', 'ice_cream', 'jelly', 'noodles', 'pickles', 'pizza', 'ribs', 'salmon', 'soup', 'wings']
         combinations = []
         list_combinations(FOODS, combinations)
 
@@ -87,8 +107,5 @@ if __name__ == '__main__':
         args = parser.parse_args()
         print(args.combination_idx)
         with open('idx.txt', 'a') as file:
-                file.write(str(args.combination_idx) +'\n') 
-        classification_task(model_construction(2), combinations[args.combination_idx]) # use job ID 
-
-
-        
+                file.write(str(args.combination_idx) +'\n')
+        classification_task(model_construction(2), combinations[args.combination_idx]) # use job ID
